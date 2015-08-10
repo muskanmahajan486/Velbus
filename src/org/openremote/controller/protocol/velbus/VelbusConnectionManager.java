@@ -74,7 +74,7 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
       this.connection.registerConnectionCallback(this);
     }
        
-    startConnectionTimer();
+    startConnectionTimer(RECONNECTION_DELAY);
   }
   
   void stop() {
@@ -161,11 +161,11 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
     return device;
   }
   
-  private void startConnectionTimer() {
+  private void startConnectionTimer(int connectionDelay) {
     synchronized(connectionTimerLock) {
       if(this.connectionTimer == null) {
         this.connectionTimer = new Timer("Velbus Bus connector");
-        this.connectionTimer.schedule(new ConnectionTask(), 1, RECONNECTION_DELAY);
+        this.connectionTimer.schedule(new ConnectionTask(), 1, connectionDelay);
         log.info("Scheduled bus connection task");
       }
     }
@@ -190,7 +190,7 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
       }
       
       // Restart the connection timer
-      startConnectionTimer();
+      startConnectionTimer(RECONNECTION_DELAY);
     } else {
       // Stop the connection timer
       log.debug("Connection established");
@@ -241,8 +241,9 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
         connectionAttempts++;
         
         if (connectionAttempts > MAX_CONNECTION_ATTEMPTS) {
-          log.warn("Max connection attempts reached, aborting connection");
-          cancelTask();
+          log.warn("Max connection attempts reached, will reattempt once every hour");
+          VelbusConnectionManager.this.cancelConnectionTimer();
+          VelbusConnectionManager.this.startConnectionTimer(3600000);
         }
       }
     }
