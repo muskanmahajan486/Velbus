@@ -64,7 +64,7 @@ public class VelbusIpConnection implements VelbusConnection, TcpSocketPort.Packe
       
       // Start the time injection task
       timerInjector = new Timer("Time Injector");
-      timerInjector.schedule(new TimeInjectionTask(), 1, TIME_INJECTION_INTERVAL);
+      timerInjector.schedule(new TimeInjectionTask(), 5000, TIME_INJECTION_INTERVAL);
       
       updateStatus(ConnectionStatus.CONNECTED);
     } catch (Exception e) {
