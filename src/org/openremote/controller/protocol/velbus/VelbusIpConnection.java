@@ -12,7 +12,7 @@ import org.apache.log4j.Logger;
 import org.openremote.controller.protocol.port.Message;
 import org.openremote.controller.protocol.port.Port;
 import org.openremote.controller.protocol.port.TcpSocketPort;
-
+import org.openremote.controller.utils.Strings;
 /**
  * This class provides support for Velbus using a Velbus
  * TCP/IP network server
@@ -93,7 +93,7 @@ public class VelbusIpConnection implements VelbusConnection, TcpSocketPort.Packe
   @Override
   public void send(VelbusPacket sendPacket) throws ConnectionException {
     Message sendMessage = new Message(sendPacket.pack());
-    System.out.println("Sending: " + TcpSocketPort.bytesToHex(sendMessage.getContent()));
+    System.out.println("Sending: " + Strings.bytesToHex(sendMessage.getContent()));
     
     try {
       this.port.send(sendMessage);
