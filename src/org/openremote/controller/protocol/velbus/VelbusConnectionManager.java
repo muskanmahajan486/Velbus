@@ -229,8 +229,8 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
           busPort = new TcpSocketPort();
           Socket socket = new Socket(getAddress(), getPort());
           Map<String, Object> cfg = new HashMap<String, Object>();
-          cfg.put("socket", socket);
-          cfg.put("processor", connection);
+          cfg.put(TcpSocketPort.TCP_PORT_CONFIGURATION_SOCKET, socket);
+          cfg.put(TcpSocketPort.TCP_PORT_CONFIGURATION_PROCESSOR, connection);
           busPort.configure(cfg);
           connection.start(busPort);
           log.info("Connection initialised");
