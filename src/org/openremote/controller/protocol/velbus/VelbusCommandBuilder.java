@@ -1,14 +1,16 @@
 package org.openremote.controller.protocol.velbus;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.log4j.Logger;
 import org.jdom.Element;
 import org.openremote.controller.Constants;
 import org.openremote.controller.command.Command;
 import org.openremote.controller.command.CommandBuilder;
 import org.openremote.controller.exception.CommandBuildException;
+import org.openremote.controller.service.Deployer;
+import org.openremote.controller.service.ServiceContext;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class VelbusCommandBuilder implements CommandBuilder {
   public final static String VELBUS_PROTOCOL_LOG_CATEGORY = Constants.CONTROLLER_PROTOCOL_LOG_CATEGORY + "velbus";
@@ -21,44 +23,39 @@ public class VelbusCommandBuilder implements CommandBuilder {
   private static final int DEVICE_LIMIT = 5;
   private static final List<Integer> DEVICE_IDS = new ArrayList<Integer>();
   private static final boolean IS_LIMITED = false;
-  
+
+  private Deployer deployer;
+
   private List<VelbusNetwork> networks = new ArrayList<VelbusNetwork>(); 
-  private Class<?> connectionClazz;
   private boolean isValid = false;
   
-  public VelbusCommandBuilder(String interfaceAddresses, String interfacePorts, String connectionClazz) {    
+  public VelbusCommandBuilder(Deployer deployer) {
+    this.deployer = deployer;
+
     // Get actual connection class
     try {
-      Class<?> c = Thread.currentThread().getContextClassLoader().loadClass(connectionClazz);
-    
-      if (VelbusConnection.class.isAssignableFrom(c)) {
-         this.connectionClazz = c;
-         
-         // Split addresses and ports by delimiter and create networks
-         String[] interfaceAddressesArr = interfaceAddresses.split(DELIMITER);
-         String[] interfacePortsArr = interfacePorts.split(DELIMITER);
-         
-         if (interfaceAddressesArr.length != interfacePortsArr.length) {
-           log.error("Number of addresses provided doesn't match the number of ports");
-           return;
-         }
-         
-         for (int i=0; i<interfaceAddressesArr.length; i++) {
-           String address = interfaceAddressesArr[i];
-           String port = interfacePortsArr[i];
-           
-           if (!address.isEmpty() && !port.isEmpty()) {
-             VelbusNetwork network = new VelbusNetwork(i+1, address, Integer.parseInt(port), (VelbusConnection) this.connectionClazz.newInstance());
-             networks.add(network);
-           }
-         }
-         
-         isValid = true;          
-      } else {
-        throw new Exception("connection class provided is not a VelbusConnection");
+      // Split addresses and ports by delimiter and create networks
+      String[] interfaceAddressesArr = ServiceContext.getVelbusConfiguration().getServerHostnames().split(DELIMITER);
+      String[] interfacePortsArr = ServiceContext.getVelbusConfiguration().getServerPorts().split(DELIMITER);
+
+      if (interfaceAddressesArr.length != interfacePortsArr.length) {
+        log.error("Number of addresses provided doesn't match the number of ports");
+        return;
       }
+
+      for (int i=0; i<interfaceAddressesArr.length; i++) {
+        String address = interfaceAddressesArr[i];
+        String port = interfacePortsArr[i];
+
+        if (!address.isEmpty() && !port.isEmpty()) {
+          VelbusNetwork network = new VelbusNetwork(i+1, address, Integer.parseInt(port), new VelbusIpConnection());
+          networks.add(network);
+        }
+      }
+
+      isValid = true;
     } catch (Exception e) {
-      log.error("Couldn't determine the VelbusConnection class to use - Protocol will not work.", e);
+      log.error("Couldn't configure the VelbusConnection class to use - Protocol will not work.", e);
     }
   }
 
