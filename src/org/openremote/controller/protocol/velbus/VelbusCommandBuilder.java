@@ -3,6 +3,7 @@ package org.openremote.controller.protocol.velbus;
 import org.apache.log4j.Logger;
 import org.jdom.Element;
 import org.openremote.controller.Constants;
+import org.openremote.controller.VelbusConfiguration;
 import org.openremote.controller.command.Command;
 import org.openremote.controller.command.CommandBuilder;
 import org.openremote.controller.exception.CommandBuildException;
@@ -34,6 +35,8 @@ public class VelbusCommandBuilder implements CommandBuilder {
 
     // Get actual connection class
     try {
+      VelbusConfiguration.readXML();
+      
       // Split addresses and ports by delimiter and create networks
       String[] interfaceAddressesArr = ServiceContext.getVelbusConfiguration().getServerHostnames().split(DELIMITER);
       String[] interfacePortsArr = ServiceContext.getVelbusConfiguration().getServerPorts().split(DELIMITER);
