@@ -20,8 +20,8 @@
 	<path id="project.class.path">
 		<pathelement location="${build.dir}"/>
 		<pathelement location="${lib.dir}/jdom-1.0.jar"/>
-        <pathelement location="${lib.dir}/log4j/log4j-1.2.12.jar"/>
-		<pathelement location="${controller.project.dir}/build/classes"/>
+    <pathelement location="${lib.dir}/log4j/log4j-1.2.12.jar"/>
+    <pathelement location="${controller.project.dir}" />
 	</path>
 	
 	<target name="clean" description="deletes all generated files">
@@ -53,6 +53,9 @@
 		<echo message=" Compiling Java classes..." />
 		<echo message="--------------------------------------------------------------------" />
 		<echo message="" />
+    <echo message="CLASSPATH=" />
+		<echo>${toString:project.class.path}</echo>
+    <echo message="" />
 		<javac failonerror="true" srcdir="${src.dir}" destdir="${build.dir}" source="1.6" target="1.6" nowarn="true" debug="true" debuglevel="lines,vars,source">
 			<classpath refid="project.class.path"/>
 		</javac>

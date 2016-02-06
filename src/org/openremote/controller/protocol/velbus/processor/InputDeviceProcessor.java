@@ -169,7 +169,6 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
       packets.add(new VelbusPacket(device.getAddresses()[0], PacketRequestCommand.READ_MEMORY.getCode(), (byte)0x03, (byte)0xFE));      
     }      
     
-    // TODO: Need to also read alarm time from memory
     return packets;
   }
 
@@ -475,6 +474,11 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
             boolean isEnabled = command.getAction() == Action.ALARM ? params[2].trim().equals("ON") : device.getPropertyValue("ALARMSTATUS" + number).equals("ON");
             
             // Find this alarm in the cache
+            if (getAlarmMemoryLocation(number, device.getDeviceType()) == null) {
+              log.debug("Alarms not supported by device type '" + device.getDeviceType() + "'");
+              return packets;
+            }
+            
             int wakeHours = (Integer)device.getPropertyValue("ALARMHOURSWAKE" + number);
             int wakeMins = (Integer)device.getPropertyValue("ALARMMINUTESWAKE" + number);            
             int bedHours = (Integer)device.getPropertyValue("ALARMHOURSBED" + number);
@@ -1032,7 +1036,10 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
     }
 
     // Check alarm times exist
-    if (!device.propertyExists("ALARMHOURSWAKE1") || !device.propertyExists("ALARMMINUTESBED2")) {
+    if (getAlarmMemoryLocation(1, device.getDeviceType()) != null && (!device.propertyExists("ALARMHOURSWAKE1") || !device.propertyExists("ALARMHOURSBED1"))) {
+      return false;
+    }
+    if (getAlarmMemoryLocation(2, device.getDeviceType()) != null && (!device.propertyExists("ALARMHOURSWAKE2") || !device.propertyExists("ALARMHOURSBED2"))) {
       return false;
     }
     
@@ -1092,7 +1099,11 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
             deviceType == VelbusDeviceType.VMBGP4 || 
             deviceType == VelbusDeviceType.VMBGP4PIR) {
       location = alarmNumber == 2 ? 0x00A9 : 0x00A5;
-    }   
+    } else if (deviceType == VelbusDeviceType.VMBPIRC || 
+            deviceType == VelbusDeviceType.VMBPIRO ||
+            deviceType == VelbusDeviceType.VMBPIRM) {
+      location = alarmNumber == 2 ? 0x0036 : 0x0032;
+    }
     
     return location;
   }
