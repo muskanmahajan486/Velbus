@@ -3,6 +3,7 @@ package org.openremote.controller.protocol.velbus;
 import org.apache.log4j.Logger;
 import org.jdom.Element;
 import org.openremote.controller.Constants;
+import org.openremote.controller.VelbusConfiguration;
 import org.openremote.controller.command.Command;
 import org.openremote.controller.command.CommandBuilder;
 import org.openremote.controller.exception.CommandBuildException;
@@ -31,12 +32,14 @@ public class VelbusCommandBuilder implements CommandBuilder {
   
   public VelbusCommandBuilder(Deployer deployer) {
     this.deployer = deployer;
+    
+    VelbusConfiguration config = VelbusConfiguration.readXML();    
 
     // Get actual connection class
     try {
       // Split addresses and ports by delimiter and create networks
-      String[] interfaceAddressesArr = ServiceContext.getVelbusConfiguration().getServerHostnames().split(DELIMITER);
-      String[] interfacePortsArr = ServiceContext.getVelbusConfiguration().getServerPorts().split(DELIMITER);
+      String[] interfaceAddressesArr = config.getServerHostnames().split(DELIMITER);
+      String[] interfacePortsArr = config.getServerPorts().split(DELIMITER);
 
       if (interfaceAddressesArr.length != interfacePortsArr.length) {
         log.error("Number of addresses provided doesn't match the number of ports");
