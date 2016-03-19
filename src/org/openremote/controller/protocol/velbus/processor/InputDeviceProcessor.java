@@ -411,7 +411,7 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
         try {
           String[] params = commandValue.split(":");
           TemperatureMode mode = TemperatureMode.valueOf(params[0].trim());
-          double tempValue = params.length == 2 ? Double.parseDouble(params[1]) : 0d;
+          double tempValue = params.length == 2 && !"${param}".equalsIgnoreCase(params[1]) ? Double.parseDouble(params[1]) : 0d;
           
           if (command.getAction() == Action.TEMP_TARGET_RELATIVE) {
             // Lookup current temp
@@ -425,7 +425,7 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
           } else if (command.getParameter() != null) {
             // Use command parameter value for new target
             try {
-              tempValue = Integer.parseInt(command.getParameter());
+              tempValue = Double.parseDouble(command.getParameter());
             } catch (NumberFormatException e) {
               log.error("Invalid dynamic value supplied for temperature", e);
             }
