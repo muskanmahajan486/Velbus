@@ -779,7 +779,18 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
       }
       case CURRENT_TEMP_STATUS:
       {
-        device.updatePropertyValue("TEMPCURRENT",  new DecimalFormat("##.#").format((double)packet.getByte(1) / 2));
+        short value = (short)(packet.getByte(1) << 8 | (short)packet.getByte(2) & 0xFF);
+        byte msb = (byte)(value >> 15);
+        if (msb > 0) {
+          value -= 1;
+          value = (short)~value;
+          value*=-1;
+        }
+        
+        value = (short)(value >> 5);
+        double result = 0.0625 * value;
+        String valueStr = new DecimalFormat("#0.0").format(result);        
+        device.updatePropertyValue("TEMPCURRENT",  valueStr);
         break;
       }
       case TEMP_SETTINGS1:
@@ -1019,9 +1030,29 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
     }
   }
 
+  private int getChannelCount(VelbusDevice device) {
+    if (device.getDeviceType() == VelbusDeviceType.VMBGPO || device.getDeviceType() == VelbusDeviceType.VMBGPOD) {
+      
+      if (device.isAddressCountValid()) {
+        int channelCount = 0;
+        for (int address : device.getAddresses()) {
+          if(address != 255) {
+            channelCount += 8;
+          }
+        }
+        return channelCount;
+      } else {
+        // Assume all 32 channels are enabled
+        return 32;
+      }
+    } else {
+      return 8;
+    }
+  }
+  
   @Override
   public boolean isInitialised(VelbusDevice device) {
-    int channelCount = device.getDeviceType() == VelbusDeviceType.VMBGPO || device.getDeviceType() == VelbusDeviceType.VMBGPOD ? 32 : 8;
+    int channelCount = getChannelCount(device);
 
     // Check first channel from each packet exists in cache
     for (int i=1; i<=channelCount; i+=8) {
@@ -1044,7 +1075,7 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
     }
     
     // Check temperatures exist 
-    if (deviceSupportsTemperature(device.getDeviceType()) && 
+    if (deviceSupportsTemperature(device) && 
                    (!device.propertyExists("HEATER") || 
                     !device.propertyExists("TEMPMODE") ||
                     !device.propertyExists("TEMPCURRENT") || 
@@ -1066,13 +1097,26 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
     return true;
   }
  
-  private boolean deviceSupportsTemperature(VelbusDeviceType deviceType) {
-    return deviceType == VelbusDeviceType.VMBGP1 || 
-            deviceType == VelbusDeviceType.VMBGP2 ||
-            deviceType == VelbusDeviceType.VMBGP4 ||
-            deviceType == VelbusDeviceType.VMBGPO ||
-            deviceType == VelbusDeviceType.VMBGPOD ||
-            deviceType == VelbusDeviceType.VMBGP4PIR;
+  private boolean deviceSupportsTemperature(VelbusDevice device) {
+    VelbusDeviceType deviceType = device.getDeviceType();
+    
+    if (deviceType != VelbusDeviceType.VMBGP1 && 
+        deviceType != VelbusDeviceType.VMBGP2 &&
+        deviceType != VelbusDeviceType.VMBGP4 &&
+        deviceType != VelbusDeviceType.VMBGPO &&
+        deviceType != VelbusDeviceType.VMBGPOD) {
+      return false;
+    }
+    
+    if (device.isAddressCountValid()) {
+      if (deviceType == VelbusDeviceType.VMBGPO || deviceType == VelbusDeviceType.VMBGPOD) {
+        return device.getAddresses()[4] != 255;
+      }
+      
+      return device.getAddresses()[1] != 255;
+    }
+    
+    return true;
   }
   
   private boolean isTempPacket(VelbusDevice device, int address) {

@@ -18,41 +18,43 @@ public class VelbusNetwork {
     this.connection = connection;
   }
   
-  String getInterfaceAddress() {
-    return interfaceAddress;
-  }
-  int getInterfacePort() {
-    return interfacePort;
-  }
-  VelbusConnection getConnection() {
-    return connection;
-  }
-  VelbusConnectionManager getConnectionManager() {
-    return connectionManager;
-  }
-
-  boolean isInitialised() {
-    return initialised;
-  }
-  
   int getId() {
     return id;
   }
   
-  void initialise() {
+  String getInterfaceAddress() {
+    return interfaceAddress;
+  }
+  
+  int getInterfacePort() {
+    return interfacePort;
+  }
+  
+  VelbusConnection getConnection() {
+    return connection;
+  }
+  
+  VelbusConnectionManager getConnectionManager() {
+    return connectionManager;
+  }
+
+  synchronized boolean isInitialised() {
+    return initialised;
+  }
+ 
+  synchronized void initialise() {
     if (!initialised) {
       log.debug("Initialising network ID " + getId());
       connectionManager = new VelbusConnectionManager();
       connectionManager.setAddress(interfaceAddress);
       connectionManager.setPort(interfacePort);
       connectionManager.setConnection(connection);
-      connectionManager.start();
-      
+      connectionManager.start();      
       this.initialised = true;
     }
   }
   
-  void stop() {
+  synchronized void stop() {
     if (initialised) {
       connectionManager.stop();
       this.initialised = false;

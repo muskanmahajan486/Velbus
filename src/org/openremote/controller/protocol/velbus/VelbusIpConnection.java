@@ -23,7 +23,7 @@ public class VelbusIpConnection implements VelbusConnection, TcpSocketPort.Packe
   private static Logger log = Logger.getLogger(VelbusCommandBuilder.VELBUS_PROTOCOL_LOG_CATEGORY);
   private static final int TIME_INJECTION_INTERVAL = 3600000*6; // 6hrs
   private ConnectionStatus status = ConnectionStatus.DISCONNECTED;
-  public static final int WAIT_BETWEEN_COMMANDS = 50;
+  public static final int WAIT_BETWEEN_COMMANDS = 60;
   private Port port;
   private BusListener busListener;
   private Timer timerInjector;
@@ -65,7 +65,7 @@ public class VelbusIpConnection implements VelbusConnection, TcpSocketPort.Packe
       
       // Start the time injection task
       timerInjector = new Timer("Time Injector");
-      timerInjector.schedule(new TimeInjectionTask(), 60000, TIME_INJECTION_INTERVAL);
+      timerInjector.schedule(new TimeInjectionTask(), 120000, TIME_INJECTION_INTERVAL);
       
       updateStatus(ConnectionStatus.CONNECTED);
       Thread.sleep(3000);
@@ -95,7 +95,7 @@ public class VelbusIpConnection implements VelbusConnection, TcpSocketPort.Packe
   @Override
   public void send(VelbusPacket sendPacket) throws ConnectionException {
     Message sendMessage = new Message(sendPacket.pack());
-    System.out.println("Sending: " + Strings.bytesToHex(sendMessage.getContent()));
+    log.debug("Sending: " + Strings.bytesToHex(sendMessage.getContent()));
     
     try {
       this.port.send(sendMessage);
@@ -111,6 +111,7 @@ public class VelbusIpConnection implements VelbusConnection, TcpSocketPort.Packe
       } finally {
         VelbusIpConnection.this.updateStatus(ConnectionStatus.DISCONNECTED);
       }
+      throw new ConnectionException();
     }
   }
 
@@ -253,6 +254,7 @@ public class VelbusIpConnection implements VelbusConnection, TcpSocketPort.Packe
               for (int moduleAddress : callback.getAddresses()) {
                 if (moduleAddress == address) {
                   try {
+                    log.debug("Received: " + Strings.bytesToHex(packet.pack()));
                     callback.onPacketReceived(packet);
                   } catch (Exception e) {
                     log.error("Packet Callback threw an exception: " + e.getMessage(), e);

@@ -5,25 +5,29 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.log4j.Logger;
 import org.openremote.controller.model.sensor.Sensor;
 import org.openremote.controller.protocol.port.Port;
 import org.openremote.controller.protocol.port.TcpSocketPort;
+import org.openremote.controller.protocol.velbus.VelbusPacket.PacketPriority;
 
 public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
   private static Logger log = Logger.getLogger(VelbusCommandBuilder.VELBUS_PROTOCOL_LOG_CATEGORY);
   private static final int MAX_CONNECTION_ATTEMPTS = 30;
   private static final int RECONNECTION_DELAY = 20000;
-  
+  private static final int CONNECTED_DELAY = 3000;
+  private final ExecutorService deviceInitialiserQueue = Executors.newSingleThreadExecutor();
   private String address;
   private int port;
   private Timer connectionTimer;
-  private Object connectionTimerLock = new Object();
   private VelbusConnection connection;
   private int connectionAttempts;
   private Port busPort;
   private Map<Integer, VelbusDevice> deviceCache = new HashMap<Integer, VelbusDevice>();
+  private static final int INIT_TIMEOUT = 30000;
   
   public int getPort() {
     return port;
@@ -56,7 +60,7 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
   /**
    * Try and make the connection to the bus
    */
-  void start() {
+  synchronized void start() {
     if (this.connection == null) {
       log.error("No connection defined so cannot start connection manager");
       return;
@@ -77,7 +81,7 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
     startConnectionTimer(RECONNECTION_DELAY);
   }
   
-  void stop() {
+  synchronized void stop() {
     cancelConnectionTimer();
     
     if (this.connection != null) {
@@ -147,36 +151,72 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
   private synchronized VelbusDevice getDevice(VelbusCommand command) {
     int addr = command.getAddress();
     
-    VelbusDevice device = deviceCache.get(addr-1);
+    if (deviceCache.get(addr-1) != null) {
+      return deviceCache.get(addr-1);
+    }
     
-    if (device == null) {
-      device = new VelbusDevice(addr, getConnection());
-      deviceCache.put(addr-1, device);
+    final VelbusDevice device = new VelbusDevice(addr, getConnection());
+    deviceCache.put(addr-1, device);
 
-      if (getConnectionStatus() == ConnectionStatus.CONNECTED) {
-        device.initialise();
-      }
+    if (getConnectionStatus() == ConnectionStatus.CONNECTED) {
+      deviceInitialiserQueue.submit(new Runnable() {        
+        @Override
+        public void run() {
+          VelbusConnectionManager.this.initialiseDevice(device);
+        }
+      });
     }
     
     return device;
   }
   
-  private void startConnectionTimer(int connectionDelay) {
-    synchronized(connectionTimerLock) {
-      if(this.connectionTimer == null) {
-        this.connectionTimer = new Timer("Velbus Bus connector");
-        this.connectionTimer.schedule(new ConnectionTask(), 1, connectionDelay);
-        log.info("Scheduled bus connection task");
+  private void initialiseDevice(VelbusDevice device) {
+    if (getConnectionStatus() != ConnectionStatus.CONNECTED) {
+      return;
+    }
+    
+    int timer = 0;
+    
+    // Get device type from velbus network
+    log.debug("Requesting module type information from bus for device '" + device.getAddresses()[0] + "'");
+    VelbusPacket request = new VelbusPacket(device.getAddresses()[0], PacketPriority.LOW, 0, true);
+    
+    try {
+      connection.send(request);
+    } catch (ConnectionException e) {
+      log.error(e);
+    }
+    
+    // Sleep until this device is initialised or init timeout elapses
+    while (getConnectionStatus() == ConnectionStatus.CONNECTED && !device.isInitialised() && timer < INIT_TIMEOUT) {
+      try {
+        Thread.sleep(100);
+        timer += 100;
+      } catch (InterruptedException e) {
+        break;
       }
+    }
+    
+    if (!device.isInitialised()) {
+      log.error("Device '" + device.getAddresses()[0] + "' failed to initialise");
+      device.setTimedout();
+    } else {
+      log.debug("Device '" + device.getAddresses()[0] + "' initialised");
+    }
+  }
+  
+  private void startConnectionTimer(int connectionDelay) {
+    if(this.connectionTimer == null) {
+      this.connectionTimer = new Timer("Velbus Bus connector");
+      this.connectionTimer.schedule(new ConnectionTask(), 1, connectionDelay);
+      log.info("Scheduled bus connection task");
     }
   }
   
   private void cancelConnectionTimer() {
-    synchronized(connectionTimerLock) {
-      if (connectionTimer != null) {
-        connectionTimer.cancel();
-        connectionTimer = null;
-      }
+    if (connectionTimer != null) {
+      connectionTimer.cancel();
+      connectionTimer = null;
     }
   }
   
@@ -184,10 +224,6 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
   public synchronized void onConnectionStatusChanged() {
     if (connection.getStatus() == ConnectionStatus.DISCONNECTED) {
       log.debug("Connection has been lost");
-      
-      for (VelbusDevice device : deviceCache.values()) {
-        device.stop();
-      }
       
       // Restart the connection timer
       startConnectionTimer(RECONNECTION_DELAY);
@@ -199,8 +235,25 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
       // Reset connection attempt counter
       connectionAttempts = 0;
       
-      for (VelbusDevice device : deviceCache.values()) {
-        device.initialise();
+      // Wait to allow server to fully initialise
+      try {
+        log.debug("Waiting for server to fully initialise");
+        Thread.sleep(CONNECTED_DELAY);
+      } catch (InterruptedException e) {
+        log.error(e);
+      }
+      
+      if (connection.getStatus() == ConnectionStatus.DISCONNECTED) {
+        return;
+      }
+      
+      for (final VelbusDevice device : deviceCache.values()) {
+        deviceInitialiserQueue.submit(new Runnable() {          
+          @Override
+          public void run() {
+            initialiseDevice(device);
+          }
+        });
       }
     }
   }
@@ -237,7 +290,7 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
           cancelTask();
         }
       } catch(Exception e) {
-        log.warn(e.getMessage(), e);
+        log.warn(e.getMessage());
         connectionAttempts++;
         
         if (connectionAttempts > MAX_CONNECTION_ATTEMPTS) {

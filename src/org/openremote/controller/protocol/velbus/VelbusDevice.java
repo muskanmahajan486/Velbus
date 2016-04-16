@@ -6,15 +6,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.log4j.Logger;
 import org.openremote.controller.component.LevelSensor;
 import org.openremote.controller.component.RangeSensor;
 import org.openremote.controller.model.sensor.Sensor;
 import org.openremote.controller.model.sensor.StateSensor;
-import org.openremote.controller.protocol.velbus.VelbusPacket.PacketPriority;
 
 public class VelbusDevice implements VelbusDevicePacketCallback {
   private class ReadCommandSensorPair
@@ -31,91 +30,40 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
   private static Logger log = Logger.getLogger(VelbusCommandBuilder.VELBUS_PROTOCOL_LOG_CATEGORY);
   private final static char[] hexArray = "0123456789ABCDEF".toCharArray();
   public static final String DEFAULT_RESPONSE = "N/A";
-  private static final int INIT_TIMEOUT = 30000;
-  private static final int RESPONSE_TIMEOUT = 30000;
   private boolean initialising;
   private boolean timedout = false;
-  private Timer timeoutTimer;
   private VelbusConnection connection;
   private int[] addresses = new int[5]; // Main address plus up to 4 sub addresses
   private VelbusDeviceType deviceType = null;
-  //private List<VelbusWriteCommand> writeQueue = new ArrayList<VelbusWriteCommand>();
   private List<ReadCommandSensorPair> readQueue = new ArrayList<ReadCommandSensorPair>();
   private Map<String, Object> deviceCache = new HashMap<String, Object>();
   private VelbusDeviceProcessor processor;
+  private boolean addressCountValid = false;
   private Map<String, List<Sensor>> sensorMap = new HashMap<String, List<Sensor>>();
   
   VelbusDevice(int address, VelbusConnection connection) {
     this.addresses[0] = address;
     this.connection = connection;
     initialising = true;
-   
-    // Create timer task to set timed out status
-    timeoutTimer = new Timer("Device Timeout Timer");
-    timeoutTimer.schedule(new TimerTask() {
-      
-      @Override
-      public void run() {
-        synchronized (VelbusDevice.this) {          
-          if (deviceType == null || deviceType == VelbusDeviceType.UNKNOWN) {
-            // Either invalid device type detected or no response from module type request
-            timedout = true;          
-          }
-        }
-        cancel();
-        VelbusDevice.this.timeoutTimer.purge();
-        VelbusDevice.this.timeoutTimer = null;
-      }
-    }, INIT_TIMEOUT);
-  }
-  
-  void initialise() {
-    // Add packet handler
-    connection.addDevicePacketHandler(this);
+    timedout = false;
     
-    // Get device type from velbus
-    log.debug("Requesting module type information from bus");
-    VelbusPacket request = new VelbusPacket(VelbusDevice.this.addresses[0], PacketPriority.LOW, 0, true);
-    
-    try {
-      connection.send(request);
-    } catch (ConnectionException e) {
-      log.error(e);
+    if (this.connection != null) {
+      // Add packet handler
+      this.connection.addDevicePacketHandler(this);
     }
   }
   
-  void stop() {
-    connection.removeDevicePacketHandler(this);
+  public boolean isInitialised() {
+    return initialising == false;
   }
-
-//  String read(VelbusReadCommand command) {
-//    if (timedout) {
-//      log.info("Device is not reachable so cannot process command");
-//      return null;
-//    }
-//
-//    if (!initialising && deviceType == VelbusDeviceType.UNKNOWN) {
-//      log.debug("Cannot process command as device type is unknown");
-//      return DEFAULT_RESPONSE;
-//    }
-//    
-//    if (!initialising) {
-//      return processCommand(command);
-//    } else {
-//      // Queue the command and pause it
-//      CommandLock commandLock = (new CommandLock(command));
-//      commandQueue.add(commandLock);
-//      try {
-//        synchronized(commandLock) {
-//          commandLock.wait(RESPONSE_TIMEOUT);          
-//        }
-//        return commandLock.response;
-//      } catch (InterruptedException e) {
-//        log.error(e);
-//        return commandLock.response;
-//      }
-//    }
-//  }
+  
+  public boolean isAddressCountValid() {
+    return addressCountValid;
+  }
+  
+  void setTimedout() {
+    timedout = true;
+  }
   
   synchronized void addSensor(VelbusReadCommand command, Sensor sensor) {
     if (timedout) {
@@ -151,17 +99,9 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
       log.info("Device is not reachable so cannot process command");
       return;
     }
-
-    if (!initialising && deviceType == VelbusDeviceType.UNKNOWN) {
-      log.debug("Cannot process command as device type is unknown");
-      return;
-    }
     
     if (!initialising) {
       processWriteCommand(command);
-    } else {
-      // Do nothing
-      //writeQueue.add(commandLock);
     }
   }
    
@@ -184,7 +124,6 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
   @Override
   public void onPacketReceived(VelbusPacket packet) {
     if (timedout) {
-      connection.removeDevicePacketHandler(this);
       return;
     }
     
@@ -274,7 +213,7 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
       {
         synchronized(this) {
           log.debug("Module type received");
-          int typeCode = packet.getByte(1) & 0xFF; // Scale up byte to an int
+          int typeCode = packet.getByte(1) & 0xFF;
           deviceType = VelbusDeviceType.fromCode(typeCode);
           log.debug("Device type '" + hexArray[typeCode >>> 4] + hexArray[typeCode & 0x0F] + "' is '" + deviceType.name() + "'");
         
@@ -295,6 +234,7 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
         for (int i=4; i<packet.getDataSize() && i<8; i++) {
           addresses[i-3] = packet.getByte(i) & 0xFF;
         }
+        addressCountValid = true;
         sendDeviceStatusRequest();
         break;
       }
@@ -310,16 +250,7 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
             initialising = !processor.isInitialised(this);
             
             if (!initialising) {
-              log.debug("Initialisation complete");
-              
-              // Process queued write commands
-//              for (VelbusWriteCommand command : writeQueue) {
-//                synchronized(lock) {
-//                  processWriteCommand(lock.command);
-//                  lock.notify();
-//                }
-//              }              
-//              writeQueue.clear();
+              log.debug("Device '" + this.getAddresses()[0] + "' is initialised");
               
               // Process queued read commands
               synchronized(this) {

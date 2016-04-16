@@ -8,7 +8,6 @@ import org.openremote.controller.command.Command;
 import org.openremote.controller.command.CommandBuilder;
 import org.openremote.controller.exception.CommandBuildException;
 import org.openremote.controller.service.Deployer;
-import org.openremote.controller.service.ServiceContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +23,6 @@ public class VelbusCommandBuilder implements CommandBuilder {
   private static final int DEVICE_LIMIT = 5;
   private static final List<Integer> DEVICE_IDS = new ArrayList<Integer>();
   private static final boolean IS_LIMITED = false;
-
   private Deployer deployer;
 
   private List<VelbusNetwork> networks = new ArrayList<VelbusNetwork>(); 
