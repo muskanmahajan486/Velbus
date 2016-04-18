@@ -1033,9 +1033,11 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
   private int getChannelCount(VelbusDevice device) {
     if (device.getDeviceType() == VelbusDeviceType.VMBGPO || device.getDeviceType() == VelbusDeviceType.VMBGPOD) {
       
-      if (device.isAddressCountValid()) {
+      if (device.getAddresses().length == 5) {
         int channelCount = 0;
-        for (int address : device.getAddresses()) {
+        for (int i=0; i<4; i++) {
+          int address = device.getAddresses()[i];
+          
           if(address != 255) {
             channelCount += 8;
           }
@@ -1108,11 +1110,13 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
       return false;
     }
     
-    if (device.isAddressCountValid()) {
-      if (deviceType == VelbusDeviceType.VMBGPO || deviceType == VelbusDeviceType.VMBGPOD) {
-        return device.getAddresses()[4] != 255;
-      }
-      
+    if ((deviceType == VelbusDeviceType.VMBGPO || deviceType == VelbusDeviceType.VMBGPOD) && device.getAddresses().length == 5) {
+      return device.getAddresses()[4] != 255;
+    }
+    
+    if ((deviceType == VelbusDeviceType.VMBGP1 ||
+        deviceType == VelbusDeviceType.VMBGP2 ||
+        deviceType == VelbusDeviceType.VMBGP4) && device.getAddresses().length == 2) {
       return device.getAddresses()[1] != 255;
     }
     

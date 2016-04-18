@@ -38,7 +38,6 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
   private List<ReadCommandSensorPair> readQueue = new ArrayList<ReadCommandSensorPair>();
   private Map<String, Object> deviceCache = new HashMap<String, Object>();
   private VelbusDeviceProcessor processor;
-  private boolean addressCountValid = false;
   private Map<String, List<Sensor>> sensorMap = new HashMap<String, List<Sensor>>();
   
   VelbusDevice(int address, VelbusConnection connection) {
@@ -55,10 +54,6 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
   
   public boolean isInitialised() {
     return initialising == false;
-  }
-  
-  public boolean isAddressCountValid() {
-    return addressCountValid;
   }
   
   void setTimedout() {
@@ -234,7 +229,6 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
         for (int i=4; i<packet.getDataSize() && i<8; i++) {
           addresses[i-3] = packet.getByte(i) & 0xFF;
         }
-        addressCountValid = true;
         sendDeviceStatusRequest();
         break;
       }
