@@ -27,7 +27,7 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
   private int connectionAttempts;
   private Port busPort;
   private Map<Integer, VelbusDevice> deviceCache = new HashMap<Integer, VelbusDevice>();
-  private static final int INIT_TIMEOUT = 30000;
+  private static final int INIT_TIMEOUT = 60000;
   
   public int getPort() {
     return port;
