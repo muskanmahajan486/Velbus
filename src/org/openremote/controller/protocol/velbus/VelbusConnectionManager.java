@@ -27,7 +27,7 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
   private int connectionAttempts;
   private Port busPort;
   private Map<Integer, VelbusDevice> deviceCache = new HashMap<Integer, VelbusDevice>();
-  private static final int INIT_TIMEOUT = 60000;
+  private static final int INIT_TIMEOUT = 30000;
   
   public int getPort() {
     return port;
@@ -171,30 +171,41 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
   }
   
   private void initialiseDevice(VelbusDevice device) {
-    if (getConnectionStatus() != ConnectionStatus.CONNECTED) {
-      return;
-    }
+    int attempts = 1;
     
-    int timer = 0;
-    
-    // Get device type from velbus network
-    log.debug("Requesting module type information from bus for device '" + device.getAddresses()[0] + "'");
-    VelbusPacket request = new VelbusPacket(device.getAddresses()[0], PacketPriority.LOW, 0, true);
-    
-    try {
-      connection.send(request);
-    } catch (ConnectionException e) {
-      log.error(e);
-    }
-    
-    // Sleep until this device is initialised or init timeout elapses
-    while (getConnectionStatus() == ConnectionStatus.CONNECTED && !device.isInitialised() && timer < INIT_TIMEOUT) {
+    while(attempts < 6) {
+      log.debug("Attempting to initialise device '" + device.getAddresses()[0] + "': Attempt " + attempts + " of 5");
+      if (getConnectionStatus() != ConnectionStatus.CONNECTED) {
+        return;
+      }
+      
+      int timer = 0;
+      
+      // Get device type from velbus network
+      log.debug("Requesting module type information from bus for device '" + device.getAddresses()[0] + "'");
+      VelbusPacket request = new VelbusPacket(device.getAddresses()[0], PacketPriority.LOW, 0, true);
+      
       try {
-        Thread.sleep(100);
-        timer += 100;
-      } catch (InterruptedException e) {
+        connection.send(request);
+      } catch (ConnectionException e) {
+        log.error(e);
+      }
+      
+      // Sleep until this device is initialised or init timeout elapses
+      while (getConnectionStatus() == ConnectionStatus.CONNECTED && !device.isInitialised() && timer < INIT_TIMEOUT) {
+        try {
+          Thread.sleep(100);
+          timer += 100;
+        } catch (InterruptedException e) {
+          break;
+        }
+      }
+      
+      if (device.isInitialised()) {
         break;
       }
+      
+      attempts++;
     }
     
     if (!device.isInitialised()) {
