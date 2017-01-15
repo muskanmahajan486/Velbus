@@ -21,6 +21,7 @@ public enum VelbusDeviceType {
   VMB8PBU(0x16, false, InputDeviceProcessor.class),
   VMB6PBN(0x17, false, InputDeviceProcessor.class),
   VMBDMI(0x15, false, DimmerDeviceProcessor.class),
+  VMBDMIR(0x2F, false, DimmerDeviceProcessor.class),
   VMBDME(0x14, false, DimmerDeviceProcessor.class),
   VMB4DC(0x12, false, DimmerDeviceProcessor.class),
   VMB2BLE(0x1D, false, BlindDeviceProcessor.class),
