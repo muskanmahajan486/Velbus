@@ -1,0 +1,87 @@
+buildscript {
+    repositories { jcenter() }
+
+    dependencies {
+        classpath 'com.netflix.nebula:gradle-extra-configurations-plugin:2.2.+'
+    }
+}
+
+apply plugin: "java"
+apply plugin: "nebula.optional-base"
+apply plugin: 'maven-publish'
+
+sourceCompatibility = 1.6
+version = projectVersion
+
+jar {
+    manifest {
+        def section = "org/openremote/protocol/velbus"
+        attributes(["Specification-Title": "OpenRemote VELBUS",
+                    "Specification-Version": "1.0",
+                    "Implementation-Title": "OpenRemote VELBUS",
+                    "Implementation-Version": projectVersion,
+                    "Implementation-Vendor": "OpenRemote, Inc."], section)
+    }
+}
+
+repositories {
+    jcenter()
+    mavenLocal()
+    mavenCentral()
+    maven {
+        url "http://m2repo.openremote.com/content/groups/public/"
+    }
+}
+
+dependencies {
+
+    compile "org.openremote:or-shared:$orSharedVersion"
+
+    compile "org.openremote:or-commons:$orCommonsVersion"
+    compile "org.openremote:or-controller:$orControllerVersion"
+	compile "org.slf4j:slf4j-log4j12:${slf4jVersion}"
+	
+    compile "jdom:jdom:$jdomVersion"
+    compile "javax.validation:validation-api:$javaxValidationVersion", optional
+
+    testCompile "org.testng:testng:${testngVersion}"
+    testCompile "org.slf4j:jcl-over-slf4j:${slf4jVersion}"
+    testCompile "org.slf4j:jul-to-slf4j:${slf4jVersion}"
+}
+
+test {
+    useTestNG() {
+        suites "src/test/AllTests.tng.xml"
+    }
+}
+
+publishing {
+    repositories {
+        maven {
+            url "${artifactRepoBase}/${project.version.endsWith('-SNAPSHOT') ? 'snapshots' : 'releases' }"
+            credentials() {
+                username artifactRepoUsername
+                password (project.hasProperty("artifactRepoPassword") ? project.property("artifactRepoPassword") : "SECRET")
+            }
+        }
+    }
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            groupId projectGroupId
+            artifactId rootProject.name
+            version = projectVersion
+        }
+    }
+}
+
+// TODO http://forums.gradle.org/gradle/topics/maven_publish_plugin_generated_pom_making_dependency_scope_runtime
+publishing.publications.all {
+    pom.withXml {
+        asNode().dependencies.'*'.findAll() {
+            it.scope.text() == 'runtime' && project.configurations.compile.allDependencies.find { dep ->
+                dep.name == it.artifactId.text()
+            }
+        }.each { it.scope*.value = 'compile'}
+    }
+}
