@@ -50,7 +50,8 @@ public abstract class VelbusCommand {
     RELEASE(false),
     LANGUAGE(false),
     PROGRAM(false),
-    TIME_UPDATE(false);
+    TIME_UPDATE(false)
+    ;
     
     private boolean isRead;
     

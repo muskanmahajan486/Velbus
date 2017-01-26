@@ -38,7 +38,7 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
   private List<ReadCommandSensorPair> readQueue = new ArrayList<ReadCommandSensorPair>();
   private Map<String, Object> deviceCache = new HashMap<String, Object>();
   private VelbusDeviceProcessor processor;
-  private Map<String, List<Sensor>> sensorMap = new HashMap<String, List<Sensor>>();
+  private Map<String, List<SensorValueConverter>> sensorMap = new HashMap<String, List<SensorValueConverter>>();
   
   VelbusDevice(int address, VelbusConnection connection) {
     this.addresses[0] = address;
@@ -80,7 +80,7 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
   }
   
   synchronized void removeSensor(VelbusReadCommand command, Sensor sensor) {
-    for(Entry<String, List<Sensor>> entry : sensorMap.entrySet())
+    for(Entry<String, List<SensorValueConverter>> entry : sensorMap.entrySet())
     {
       if (entry.getValue().remove(sensor))
       {
@@ -112,7 +112,7 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
     return deviceCache;
   }
   
-  public Map<String, List<Sensor>> getSensorMap() {
+  public Map<String, List<SensorValueConverter>> getSensorMap() {
     return sensorMap;
   }
   
@@ -144,19 +144,34 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
       if (propertyName != null) {
         propertyName = propertyName.toUpperCase();
 
-        Map<String, List<Sensor>> sensorMap = getSensorMap();
-        List<Sensor> sensors = sensorMap.get(propertyName);
+        Map<String, List<SensorValueConverter>> sensorMap = getSensorMap();
+        List<SensorValueConverter> sensors = sensorMap.get(propertyName);
         
         if (sensors == null) {
-          sensors = new ArrayList<Sensor>();
+          sensors = new ArrayList<SensorValueConverter>();
           sensorMap.put(propertyName, sensors);
         }
-        
-        sensors.add(sensor);
+
+        // Look for conversion value in the command (only for COUNTER_INSTANT_STATUS commands)
+        Double conversion = null;
+
+        if (command.getAction() == VelbusCommand.Action.COUNTER_INSTANT_STATUS) {
+          String[] params = command.getValue().split(":");
+          if (params.length == 2) {
+            try {
+              conversion = Double.parseDouble(params[1]);
+            } catch (NumberFormatException e) {
+              log.error(e);
+            }
+          }
+        }
+
+        SensorValueConverter converter = new SensorValueConverter(sensor, conversion);
+        sensors.add(converter);
         
         // Update the value of the sensor with value from cache
         Object currentValue = getPropertyValue(propertyName);
-        updateSensor(sensor, currentValue != null ? currentValue.toString() : "N/A"); 
+        converter.updateSensor(currentValue != null ? currentValue.toString() : "N/A");
       }
     }
   }
@@ -314,41 +329,14 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
   }
   
   private void updateSensors(String propertyName, Object value) {
-    Map<String, List<Sensor>> sensorMap = getSensorMap();
-    List<Sensor> sensors = sensorMap.get(propertyName);
+    Map<String, List<SensorValueConverter>> sensorMap = getSensorMap();
+    List<SensorValueConverter> converters = sensorMap.get(propertyName);
     String sensorValue = value != null ? value.toString() : "N/A";
     
-    if (sensors != null) {
-      for (Sensor sensor : sensors) {
-        updateSensor(sensor, sensorValue);
+    if (converters != null) {
+      for (SensorValueConverter converter : converters) {
+        converter.updateSensor(sensorValue);
       }
     }
-  }
-  
-  private void updateSensor(Sensor sensor, String sensorValue) {
-    if (sensor == null) {
-      return;
-    }
-    
-    if (sensor instanceof StateSensor) {
-      // State sensors are case sensitive and expect lower case
-      sensorValue = sensorValue.toLowerCase();
-    } else if (sensor instanceof RangeSensor) {
-      try {
-        // Value must be an integer
-        BigDecimal parsedValue = new BigDecimal(sensorValue);
-        
-        if (sensor instanceof LevelSensor) {
-           sensorValue = Integer.toString(Math.min(100, Math.max(0, parsedValue.intValue())));
-        } else {
-          sensorValue = Integer.toString(parsedValue.intValue());
-        }
-      } catch (NumberFormatException e) {
-         log.warn("Received value (" + sensorValue + ") invalid, cannot be converted to integer");
-         sensorValue = "0";
-      }
-    }
-    
-    sensor.update(sensorValue);
   }
 }

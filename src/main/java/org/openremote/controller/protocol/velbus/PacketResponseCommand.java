@@ -24,7 +24,8 @@ public enum PacketResponseCommand {
   LED_FAST(0xF8),
   LED_VERYFAST(0xF9),
   LED_STATUS(0xF4),
-  COUNTER_STATUS(0xBE)
+  COUNTER_STATUS(0xBE),
+  METEO_STATUS(0xA9)
   ;
    
   private int code;

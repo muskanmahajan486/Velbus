@@ -16,9 +16,9 @@ import org.openremote.controller.protocol.velbus.VelbusPacket.PacketPriority;
 
 public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
   private static Logger log = Logger.getLogger(VelbusCommandBuilder.VELBUS_PROTOCOL_LOG_CATEGORY);
-  private static final int MAX_CONNECTION_ATTEMPTS = 30;
-  private static final int RECONNECTION_DELAY = 20000;
-  private static final int CONNECTED_DELAY = 3000;
+  public static final int MAX_CONNECTION_ATTEMPTS = 30;
+  public static final int RECONNECTION_DELAY = 20000;
+  public static final int CONNECTED_DELAY = 3000;
   private final ExecutorService deviceInitialiserQueue = Executors.newSingleThreadExecutor();
   private String address;
   private int port;
@@ -217,7 +217,7 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
   }
   
   private void startConnectionTimer(int connectionDelay) {
-    if(this.connectionTimer == null) {
+      if(this.connectionTimer == null) {
       this.connectionTimer = new Timer("Velbus Bus connector");
       this.connectionTimer.schedule(new ConnectionTask(), 1, connectionDelay);
       log.info("Scheduled bus connection task");

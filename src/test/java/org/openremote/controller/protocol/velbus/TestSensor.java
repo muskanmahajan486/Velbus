@@ -9,9 +9,9 @@ import org.openremote.controller.protocol.EventProducer;
 import org.openremote.controller.statuscache.StatusCache;
 
 public class TestSensor extends Sensor {
-  protected TestSensor(String name, int sensorID, StatusCache cache, EventProducer eventProducer,
+  protected TestSensor(String name, int sensorID, int commandId, StatusCache cache, EventProducer eventProducer,
           Map<String, String> sensorProperties, EnumSensorType sensorType) {
-    super(name, sensorID, cache, eventProducer, sensorProperties, sensorType);
+    super(name, sensorID, cache, eventProducer, commandId, sensorProperties, sensorType);
     
   }
 

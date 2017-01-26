@@ -330,10 +330,10 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
       case COUNTER_INSTANT_STATUS:
       {
         try {
-          // Check which channel they want
-          int channelNumber = Integer.parseInt(commandValue);
+          // Check which channel they want and look for any conversion multiplier
+          String[] params = commandValue.split(":");
           String prefix = command.getAction() == Action.COUNTER_STATUS ? "counter" : "counterInstant";
-          propertyName = prefix + channelNumber;
+          propertyName = prefix + params[0];
         } catch (NumberFormatException e) {
           log.error("Invalid Command value '" + commandValue + "' for '" + command.getAction() + "' command");
         }
@@ -692,12 +692,24 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
         
         // Extract channel info        
         // Update each of the 8 channels for this address
-        int statusByte = packet.getByte(1) & 0xFF;
-        int enabledByte = packet.getByte(2) & 0xFF;
-        int invertedByte = packet.getByte(3) & 0xFF;
-        int lockByte = packet.getByte(4) & 0xFF;
-        int programByte = packet.getByte(5) & 0xFF;
-        
+        int statusByte = 0;
+        int enabledByte = 0;
+        int invertedByte = 0;
+        int lockByte = 0;
+        int programByte = 0;
+
+        if (device.getDeviceType() == VelbusDeviceType.VMBMETEO) {
+          statusByte = packet.getByte(1) & 0xFF;
+          lockByte = packet.getByte(2) & 0xFF;
+          programByte = packet.getByte(3) & 0xFF;
+        } else {
+          statusByte = packet.getByte(1) & 0xFF;
+          enabledByte = packet.getByte(2) & 0xFF;
+          invertedByte = packet.getByte(3) & 0xFF;
+          lockByte = packet.getByte(4) & 0xFF;
+          programByte = packet.getByte(5) & 0xFF;
+        }
+
         for (int i=startChannel; i<startChannel+8; i++) {
           ChannelStatus status = (statusByte & 0x01) == 1 ? ChannelStatus.PRESSED : ChannelStatus.RELEASED;
           boolean enabled = (enabledByte & 0x01) == 1;
@@ -724,14 +736,14 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
         }
                
         if (startChannel == 1) {
-          
-          device.updatePropertyValue("PROGRAM", Program.fromCode(packet.getByte(6) & 0x03));
-          device.updatePropertyValue("ALARMSTATUS1", getOnOff((packet.getByte(6) & 0x04) == 0x04));
-          device.updatePropertyValue("ALARMSTATUS2", getOnOff((packet.getByte(6) & 0x10) == 0x10));
-          device.updatePropertyValue("ALARMTYPE1", (packet.getByte(6) & 0x08) == 0x08 ? "MASTER" : "LOCAL");
-          device.updatePropertyValue("ALARMTYPE2", (packet.getByte(6) & 0x20) == 0x20 ? "MASTER" : "LOCAL");          
-          device.updatePropertyValue("SUNRISE", getOnOff((packet.getByte(6) & 0x40) == 0x40));
-          device.updatePropertyValue("SUNSET", getOnOff((packet.getByte(6) & 0x80) == 0x80));
+          byte alarmByte = device.getDeviceType() == VelbusDeviceType.VMBMETEO ? packet.getByte(4) : packet.getByte(6);
+          device.updatePropertyValue("PROGRAM", Program.fromCode(alarmByte & 0x03));
+          device.updatePropertyValue("ALARMSTATUS1", getOnOff((alarmByte & 0x04) == 0x04));
+          device.updatePropertyValue("ALARMSTATUS2", getOnOff((alarmByte & 0x10) == 0x10));
+          device.updatePropertyValue("ALARMTYPE1", (alarmByte & 0x08) == 0x08 ? "MASTER" : "LOCAL");
+          device.updatePropertyValue("ALARMTYPE2", (alarmByte & 0x20) == 0x20 ? "MASTER" : "LOCAL");
+          device.updatePropertyValue("SUNRISE", getOnOff((alarmByte & 0x40) == 0x40));
+          device.updatePropertyValue("SUNSET", getOnOff((alarmByte & 0x80) == 0x80));
         }
 
         break;
@@ -1024,8 +1036,20 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
         }
         break;
       }
+      case METEO_STATUS:
+      {
+        short rainValue = (short)(packet.getByte(1) << 8 | (short)packet.getByte(2) & 0xFF);
+        double rain = 0.1 * rainValue;
+        short light = (short)(packet.getByte(3) << 8 | (short)packet.getByte(4) & 0xFF);
+        short windValue = (short)(packet.getByte(5) << 8 | (short)packet.getByte(6) & 0xFF);
+        double wind = 0.1 * windValue;
+        device.updatePropertyValue("COUNTERINSTANTRAIN", new DecimalFormat("#.#").format(rain));
+        device.updatePropertyValue("COUNTERINSTANTLIGHT", new DecimalFormat("#").format(light));
+        device.updatePropertyValue("COUNTERINSTANTWIND", new DecimalFormat("#.#").format(wind));
+        break;
+      }
       default:
-        log.warn("Unkown command '" + packet.getCommand() + "' will be ignored");
+        log.warn("Unknown command '" + packet.getCommand() + "' will be ignored");
         break;
     }
   }
@@ -1151,6 +1175,8 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
             deviceType == VelbusDeviceType.VMBPIRO ||
             deviceType == VelbusDeviceType.VMBPIRM) {
       location = alarmNumber == 2 ? 0x0036 : 0x0032;
+    } else if (deviceType == VelbusDeviceType.VMBMETEO) {
+      location = alarmNumber == 2 ? 0x0088 : 0x0084;
     }
     
     return location;

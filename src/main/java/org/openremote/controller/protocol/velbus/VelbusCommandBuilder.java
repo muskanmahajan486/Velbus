@@ -24,29 +24,38 @@ public class VelbusCommandBuilder implements CommandBuilder {
   private static final List<Integer> DEVICE_IDS = new ArrayList<Integer>();
   private static final boolean IS_LIMITED = false;
   private Deployer deployer;
-
   private List<VelbusNetwork> networks = new ArrayList<VelbusNetwork>(); 
   private boolean isValid = false;
-  
+
+  public VelbusCommandBuilder(String[] interfaces, String[] ports) {
+    initialise(interfaces, ports);
+  }
+
   public VelbusCommandBuilder(Deployer deployer) {
     this.deployer = deployer;
-    
-    VelbusConfiguration config = VelbusConfiguration.readXML();    
+    VelbusConfiguration config = VelbusConfiguration.readXML();
 
     // Get actual connection class
     try {
       // Split addresses and ports by delimiter and create networks
       String[] interfaceAddressesArr = config.getServerHostnames().split(DELIMITER);
       String[] interfacePortsArr = config.getServerPorts().split(DELIMITER);
+      initialise(interfaceAddressesArr, interfacePortsArr);
+    } catch (Exception e) {
+      log.error("Couldn't configure the VelbusConnection class to use - Protocol will not work.", e);
+    }
+  }
 
-      if (interfaceAddressesArr.length != interfacePortsArr.length) {
+  protected void initialise(String[] interfaces, String[] ports) {
+    try {
+      if (interfaces.length != ports.length) {
         log.error("Number of addresses provided doesn't match the number of ports");
         return;
       }
 
-      for (int i=0; i<interfaceAddressesArr.length; i++) {
-        String address = interfaceAddressesArr[i];
-        String port = interfacePortsArr[i];
+      for (int i=0; i<interfaces.length; i++) {
+        String address = interfaces[i];
+        String port = ports[i];
 
         if (!address.isEmpty() && !port.isEmpty()) {
           VelbusNetwork network = new VelbusNetwork(i+1, address, Integer.parseInt(port), new VelbusIpConnection());
@@ -153,5 +162,9 @@ public class VelbusCommandBuilder implements CommandBuilder {
      
       return new VelbusWriteCommand(network.getConnectionManager(), address, action, commandValue, paramValue);
     }
+  }
+
+  public List<VelbusNetwork> getNetworks() {
+    return networks;
   }
 }

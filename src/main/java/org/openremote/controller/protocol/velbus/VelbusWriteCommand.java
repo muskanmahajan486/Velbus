@@ -18,7 +18,7 @@ public class VelbusWriteCommand extends VelbusCommand implements ExecutableComma
   public void send() {
     if (connectionManager.getConnectionStatus()!= ConnectionStatus.CONNECTED)
     {
-      log.info("No KNX connection available, did not send command");
+      log.info("Send command failed: No connection available");
     }
     else
     {

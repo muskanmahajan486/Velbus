@@ -29,7 +29,9 @@ public enum VelbusDeviceType {
   VMBGP4PIR(0x2D, true, InputDeviceProcessor.class),
   VMBPIRM(0x2A, false, InputDeviceProcessor.class),
   VMBPIRO(0x2C, false, InputDeviceProcessor.class),
-  VMBPIRC(0x2B, false, InputDeviceProcessor.class)
+  VMBPIRC(0x2B, false, InputDeviceProcessor.class),
+  VMBMETEO(0x31, false, InputDeviceProcessor.class),
+  WMB1TS(0x0C, false, InputDeviceProcessor.class)
   ;
   
   private static final Map<Class<? extends VelbusDeviceProcessor>, VelbusDeviceProcessor> processors = new HashMap<Class<? extends VelbusDeviceProcessor>, VelbusDeviceProcessor>();
