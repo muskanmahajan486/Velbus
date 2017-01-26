@@ -1,0 +1,87 @@
+1.3.0 (26/01/2017)
+======================
+
+New Features:
+
+  - Added VMBMETEO Support
+  - Added VMB1TS Support
+  - Migrated to gradle build
+  - Started meaningful unit tests (mock server provided but still connecting to physical network for most devices)
+ 
+Bug Fixes:
+
+Known Issues:
+
+  - Unit tests need to be migrated over to mock server implementation
+  
+1.2.2 (15/01/2017)
+======================
+
+New Features:
+
+  - Added support for VMBDMI-R
+  
+Bug Fixes:
+
+Known Issues:
+
+  - No solid unit tests
+
+1.2.1 (11/07/2016)
+======================
+
+New Features:
+
+  - Increased device initialisation timeout
+  - Added 5 initialisation attempts for all devices to improve startup
+  
+Bug Fixes:
+
+  - Bug fix fo OLED device initialisation
+
+Known Issues:
+
+  - No solid unit tests
+  
+1.2.0 (20/04/2016)
+======================
+
+New Features:
+
+Bug Fixes:
+
+  - Improved connection reliability
+
+Known Issues:
+  
+  - No solid unit tests
+  
+1.1.1 (19/03/2016)
+======================
+
+New Features:
+  
+  - Temp resolution improved to 0.1 degrees
+
+Bug Fixes:
+
+  - Added delay between commands to prevent flooding the bus
+  - Fixed issue with PIR devices
+  
+Known Issues:
+  
+  - No solid unit tests
+  
+1.0.8 (15/10/2015)
+======================
+
+New Features:
+
+Bug Fixes:
+  
+  - Improved reconnection mechanism for failed connections
+  - Added delay for initial time injection
+
+Known Issues:
+  
+  - No solid unit tests
