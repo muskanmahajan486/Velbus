@@ -22,7 +22,7 @@ package org.openremote.controller.protocol.velbus;
 import junit.framework.Assert;
 import org.junit.Test;
 
-public class MeteoTest extends BaseTest {
+public class VmbmeteoTest extends BaseTest {
     VelbusCommandBuilder builder;
 
     @Override
@@ -35,7 +35,7 @@ public class MeteoTest extends BaseTest {
 
     @Test
     public void windLightRainRead() throws InterruptedException {
-        VelbusReadCommand lightCommand = (VelbusReadCommand)getCommandBuilder().build(createCommandElement(1, 254, VelbusCommand.Action.COUNTER_INSTANT_STATUS, "LIGHT"));
+        VelbusReadCommand lightCommand = (VelbusReadCommand)getCommandBuilder().build(createCommandElement(1, 254, VelbusCommand.Action.COUNTER_INSTANT_STATUS, "LiGHT"));
         VelbusReadCommand rainCommand = (VelbusReadCommand)getCommandBuilder().build(createCommandElement(1, 254, VelbusCommand.Action.COUNTER_INSTANT_STATUS, "RAIN"));
         VelbusReadCommand windCommand = (VelbusReadCommand)getCommandBuilder().build(createCommandElement(1, 254, VelbusCommand.Action.COUNTER_INSTANT_STATUS, "WIND"));
         TestSensor lightSensor = createSensor("Light", lightCommand);
@@ -48,8 +48,8 @@ public class MeteoTest extends BaseTest {
 
         // Check sensors have some value (allow some time for device to initialise)
         Assert.assertTrue(sensorHasValue(lightSensor, 20));
-        Assert.assertTrue(sensorHasValue(lightSensor, 1));
-        Assert.assertTrue(sensorHasValue(lightSensor, 1));
+        Assert.assertTrue(sensorHasValue(rainSensor, 1));
+        Assert.assertTrue(sensorHasValue(windSensor, 1));
         Assert.assertTrue(sensorHasValue(lightConvertedSensor, 1));
 
         System.out.println("Light sensor value is: " + lightSensor.value);

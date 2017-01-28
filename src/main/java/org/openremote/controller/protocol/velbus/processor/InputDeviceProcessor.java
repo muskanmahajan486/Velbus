@@ -329,14 +329,10 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
       case COUNTER_STATUS:
       case COUNTER_INSTANT_STATUS:
       {
-        try {
-          // Check which channel they want and look for any conversion multiplier
-          String[] params = commandValue.split(":");
-          String prefix = command.getAction() == Action.COUNTER_STATUS ? "counter" : "counterInstant";
-          propertyName = prefix + params[0];
-        } catch (NumberFormatException e) {
-          log.error("Invalid Command value '" + commandValue + "' for '" + command.getAction() + "' command");
-        }
+        // Check which channel they want and look for any conversion multiplier
+        String[] params = commandValue.split(":");
+        String prefix = command.getAction() == Action.COUNTER_STATUS ? "counter" : "counterInstant";
+        propertyName = prefix + params[0];
         break;
       }
     }
@@ -775,8 +771,8 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
         } else {
           modeStr += "SAFE";
         }
-        device.updatePropertyValue("TEMPMODE",  TemperatureMode.valueOf(modeStr));
 
+        device.updatePropertyValue("TEMPMODE",  TemperatureMode.valueOf(modeStr));
         device.updatePropertyValue("HEATER", (packet.getByte(3) & 0x01) == 0x01 ? ChannelStatus.PRESSED : ChannelStatus.RELEASED);
         device.updatePropertyValue("BOOST", (packet.getByte(3) & 0x02) == 0x02 ? ChannelStatus.PRESSED : ChannelStatus.RELEASED);
         device.updatePropertyValue("PUMP", (packet.getByte(3) & 0x04) == 0x04 ? ChannelStatus.PRESSED : ChannelStatus.RELEASED);
@@ -1038,10 +1034,10 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
       }
       case METEO_STATUS:
       {
-        short rainValue = (short)(packet.getByte(1) << 8 | (short)packet.getByte(2) & 0xFF);
+        short rainValue = (short)((packet.getByte(1) << 8 | packet.getByte(2)) & 0xFFFF);
         double rain = 0.1 * rainValue;
-        short light = (short)(packet.getByte(3) << 8 | (short)packet.getByte(4) & 0xFF);
-        short windValue = (short)(packet.getByte(5) << 8 | (short)packet.getByte(6) & 0xFF);
+        int light = packet.getByte(3) << 8 | packet.getByte(4);
+        short windValue = (short)((packet.getByte(5) << 8 | packet.getByte(6)) & 0xFFFF);
         double wind = 0.1 * windValue;
         device.updatePropertyValue("COUNTERINSTANTRAIN", new DecimalFormat("#.#").format(rain));
         device.updatePropertyValue("COUNTERINSTANTLIGHT", new DecimalFormat("#").format(light));
@@ -1071,6 +1067,8 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
         // Assume all 32 channels are enabled
         return 32;
       }
+    } else if (device.getDeviceType() == VelbusDeviceType.VMB1TS) {
+      return 0;
     } else {
       return 8;
     }
@@ -1085,31 +1083,33 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
       if (!device.propertyExists("CHANNELSTATUS" + i)) {
         return false;
       }
-    }
-        
-    // Check program exists in cache
-    if (!device.propertyExists("PROGRAM")) {
-      return false;
-    }
+   }
 
-    // Check alarm times exist
-    if (getAlarmMemoryLocation(1, device.getDeviceType()) != null && (!device.propertyExists("ALARMHOURSWAKE1") || !device.propertyExists("ALARMHOURSBED1"))) {
-      return false;
-    }
-    if (getAlarmMemoryLocation(2, device.getDeviceType()) != null && (!device.propertyExists("ALARMHOURSWAKE2") || !device.propertyExists("ALARMHOURSBED2"))) {
-      return false;
-    }
-    
-    // Check temperatures exist 
-    if (deviceSupportsTemperature(device) && 
-                   (!device.propertyExists("HEATER") || 
+    // Check temperatures exist
+    if (deviceSupportsTemperature(device) &&
+            (!device.propertyExists("HEATER") ||
                     !device.propertyExists("TEMPMODE") ||
-                    !device.propertyExists("TEMPCURRENT") || 
+                    !device.propertyExists("TEMPCURRENT") ||
                     !device.propertyExists("TEMPTARGET_HEAT_COMFORT") ||
                     !device.propertyExists("TEMPTARGET_COOL_COMFORT"))) {
       return false;
     }
-    
+        
+    // Check program properties exist in cache
+    if (deviceSupportsPrograms(device)) {
+      if (!device.propertyExists("PROGRAM")) {
+        return false;
+      }
+
+      // Check alarm times exist
+      if (getAlarmMemoryLocation(1, device.getDeviceType()) != null && (!device.propertyExists("ALARMHOURSWAKE1") || !device.propertyExists("ALARMHOURSBED1"))) {
+        return false;
+      }
+      if (getAlarmMemoryLocation(2, device.getDeviceType()) != null && (!device.propertyExists("ALARMHOURSWAKE2") || !device.propertyExists("ALARMHOURSBED2"))) {
+        return false;
+      }
+    }
+
     // Can't check the following because if channel counter disabled we get no response
 //    if (device.getDeviceType() == VelbusDeviceType.VMB7IN) {
 //      // Check counters for each channel
@@ -1122,7 +1122,11 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
 
     return true;
   }
- 
+
+  private boolean deviceSupportsPrograms(VelbusDevice device) {
+    return device.getDeviceType() != VelbusDeviceType.VMB1TS;
+  }
+
   private boolean deviceSupportsTemperature(VelbusDevice device) {
     VelbusDeviceType deviceType = device.getDeviceType();
     
@@ -1130,7 +1134,8 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
         deviceType != VelbusDeviceType.VMBGP2 &&
         deviceType != VelbusDeviceType.VMBGP4 &&
         deviceType != VelbusDeviceType.VMBGPO &&
-        deviceType != VelbusDeviceType.VMBGPOD) {
+        deviceType != VelbusDeviceType.VMBGPOD &&
+        deviceType != VelbusDeviceType.VMB1TS) {
       return false;
     }
     

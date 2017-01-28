@@ -152,10 +152,10 @@ public class VelbusDevice implements VelbusDevicePacketCallback {
           sensorMap.put(propertyName, sensors);
         }
 
-        // Look for conversion value in the command (only for COUNTER_INSTANT_STATUS commands)
+        // Look for conversion value in the command (only for COUNTER commands)
         Double conversion = null;
 
-        if (command.getAction() == VelbusCommand.Action.COUNTER_INSTANT_STATUS) {
+        if (command.getAction() == VelbusCommand.Action.COUNTER_INSTANT_STATUS || command.getAction() == VelbusCommand.Action.COUNTER_STATUS) {
           String[] params = command.getValue().split(":");
           if (params.length == 2) {
             try {
