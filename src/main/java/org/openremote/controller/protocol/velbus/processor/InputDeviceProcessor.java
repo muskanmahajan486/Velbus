@@ -167,7 +167,12 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
     if (device.getDeviceType() == VelbusDeviceType.VMB7IN) {
       packets.add(new VelbusPacket(device.getAddresses()[0], PacketRequestCommand.COUNTER_STATUS.getCode(), (byte)0x0F, (byte)0x00));
       packets.add(new VelbusPacket(device.getAddresses()[0], PacketRequestCommand.READ_MEMORY.getCode(), (byte)0x03, (byte)0xFE));      
-    }      
+    }
+
+    // Add light, windd and rain request
+    if (device.getDeviceType() == VelbusDeviceType.VMBMETEO) {
+      packets.add(new VelbusPacket(device.getAddresses()[0], PacketRequestCommand.SENSOR_READOUT.getCode(), (byte)0x0F, (byte)0x00));
+    }
     
     return packets;
   }
@@ -1034,11 +1039,11 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
       }
       case METEO_STATUS:
       {
-        short rainValue = (short)((packet.getByte(1) << 8 | packet.getByte(2)) & 0xFFFF);
-        double rain = 0.1 * rainValue;
-        int light = packet.getByte(3) << 8 | packet.getByte(4);
-        short windValue = (short)((packet.getByte(5) << 8 | packet.getByte(6)) & 0xFFFF);
+        int rainValue = Math.abs((packet.getByte(1) << 8) + packet.getByte(2));
+        int light = Math.abs((packet.getByte(3) << 8)  + packet.getByte(4));
+        int windValue = Math.abs((packet.getByte(5) << 8) + packet.getByte(6));
         double wind = 0.1 * windValue;
+        double rain = 0.1 * rainValue;
         device.updatePropertyValue("COUNTERINSTANTRAIN", new DecimalFormat("#.#").format(rain));
         device.updatePropertyValue("COUNTERINSTANTLIGHT", new DecimalFormat("#").format(light));
         device.updatePropertyValue("COUNTERINSTANTWIND", new DecimalFormat("#.#").format(wind));
@@ -1106,6 +1111,13 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
         return false;
       }
       if (getAlarmMemoryLocation(2, device.getDeviceType()) != null && (!device.propertyExists("ALARMHOURSWAKE2") || !device.propertyExists("ALARMHOURSBED2"))) {
+        return false;
+      }
+    }
+
+    // Check meteo light, wind & rain
+    if (device.getDeviceType() == VelbusDeviceType.VMBMETEO) {
+      if (!device.propertyExists("COUNTERINSTANTRAIN") || !device.propertyExists("COUNTERINSTANTWIND") || !device.propertyExists("COUNTERINSTANTLIGHT")) {
         return false;
       }
     }

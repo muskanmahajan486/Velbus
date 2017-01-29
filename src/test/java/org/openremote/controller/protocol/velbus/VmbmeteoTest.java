@@ -47,7 +47,7 @@ public class VmbmeteoTest extends BaseTest {
         TestSensor lightConvertedSensor = createSensor("LightConverted", lightConvertedCommand);
 
         // Check sensors have some value (allow some time for device to initialise)
-        Assert.assertTrue(sensorHasValue(lightSensor, 20));
+        Assert.assertTrue(sensorHasValue(lightSensor, 30));
         Assert.assertTrue(sensorHasValue(rainSensor, 1));
         Assert.assertTrue(sensorHasValue(windSensor, 1));
         Assert.assertTrue(sensorHasValue(lightConvertedSensor, 1));

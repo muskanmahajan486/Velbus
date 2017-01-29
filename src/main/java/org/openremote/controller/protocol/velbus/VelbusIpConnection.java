@@ -23,7 +23,7 @@ public class VelbusIpConnection implements VelbusConnection, TcpSocketPort.Packe
   private static Logger log = Logger.getLogger(VelbusCommandBuilder.VELBUS_PROTOCOL_LOG_CATEGORY);
   private static final int TIME_INJECTION_INTERVAL = 3600000*6; // 6hrs
   private ConnectionStatus status = ConnectionStatus.DISCONNECTED;
-  public static final int WAIT_BETWEEN_COMMANDS = 60;
+  public static final int WAIT_BETWEEN_COMMANDS = 100;
   private Port port;
   private BusListener busListener;
   private Timer timerInjector;

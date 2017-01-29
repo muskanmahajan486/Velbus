@@ -40,7 +40,8 @@ public enum PacketRequestCommand {
   BLIND_CHANNEL_UNLOCK(0x1B),
   MEMO_TEXT(0xAC),
   COUNTER_STATUS(0xBD),
-  SELECT_PROGRAM(0xB3)
+  SELECT_PROGRAM(0xB3),
+  SENSOR_READOUT(0xE5)
   ;
    
   private int code;
