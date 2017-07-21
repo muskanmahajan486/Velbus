@@ -169,7 +169,7 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
       packets.add(new VelbusPacket(device.getAddresses()[0], PacketRequestCommand.READ_MEMORY.getCode(), (byte)0x03, (byte)0xFE));      
     }
 
-    // Add light, windd and rain request
+    // Add light, wind and rain request
     if (device.getDeviceType() == VelbusDeviceType.VMBMETEO) {
       packets.add(new VelbusPacket(device.getAddresses()[0], PacketRequestCommand.SENSOR_READOUT.getCode(), (byte)0x0F, (byte)0x00));
     }
@@ -385,7 +385,7 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
           String[] params = commandValue.split(":");
           if (params.length == 2) {
             int channelNumber = Integer.parseInt(params[0]);
-            byte channelByte = (byte)Math.pow(2, channelNumber - 1);
+            byte channelByte = (byte)(Math.pow(2, channelNumber - 1));
             
             // Figure out address to use
             int addressIndex = Math.min(0, Math.max(4, (int)Math.floor((double)channelNumber / 8)));
@@ -624,7 +624,7 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
           int channelNumber = Integer.parseInt(commandValue);
           int addressIndex = Math.max(0, Math.min(4, (int)Math.floor((double)channelNumber / 8)));
           int channelIndex = channelNumber % 8;
-          packetBytes[byteIndex] = (byte)Math.pow(2, channelIndex - 1);
+          packetBytes[byteIndex] = (byte)(Math.pow(2, channelIndex - 1));
           packets.add(new VelbusPacket(device.getAddresses()[addressIndex], PacketRequestCommand.BUTTON_STATUS.getCode(), VelbusPacket.PacketPriority.HIGH, packetBytes));
           
           // Update cache as bus doesn't return a response
@@ -729,9 +729,9 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
           device.updatePropertyValue("CHANNELLOCK" + i, lock);
           device.updatePropertyValue("CHANNELINVERTED" + i, inverted);
           device.updatePropertyValue("CHANNELPROGRAMDISABLED" + i, programDisabled);
-        }
-        
-        if (device.getDeviceType() == VelbusDeviceType.VMBGP4PIR) {
+      }
+
+      if (device.getDeviceType() == VelbusDeviceType.VMBGP4PIR) {
           // Read PIR sensor data
           
         }
@@ -882,7 +882,7 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
               device.updatePropertyValue("CHANNELSTATUS" + i, ChannelStatus.PRESSED);
             } else if ((releasedByte & 0x01) == 1) {
               device.updatePropertyValue("CHANNELSTATUS" + i, ChannelStatus.RELEASED);
-            } else if ((releasedByte & 0x01) == 1) {
+            } else if ((longPressedByte & 0x01) == 1) {
               device.updatePropertyValue("CHANNELSTATUS" + i, ChannelStatus.LONG_PRESSED);
             }
 
@@ -899,13 +899,13 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
         Integer alarm2 = getAlarmMemoryLocation(2, device.getDeviceType());
         int memoryLocation = ((packet.getByte(1) & 0xFF) << 8) | (packet.getByte(2) & 0xFF);
         int alarmNumber = 0;
-        
+
         if (alarm1 != null && alarm1.intValue() == memoryLocation) {
           alarmNumber = 1;
         } else if (alarm2 != null && alarm2.intValue() == memoryLocation) {
           alarmNumber = 2;
         }
-        
+
         if (alarmNumber > 0) {
           int wakeHours = packet.getByte(3) & 0xFF;
           int wakeMins = packet.getByte(4) & 0xFF;
