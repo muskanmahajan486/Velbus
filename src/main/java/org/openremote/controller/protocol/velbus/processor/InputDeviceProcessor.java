@@ -1055,6 +1055,19 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
     }
   }
 
+  private int getMaxSubAddresses(VelbusDevice device) {
+    VelbusDeviceType deviceType = device.getDeviceType();
+    if (deviceType == VelbusDeviceType.VMBGPO || deviceType == VelbusDeviceType.VMBGPOD) {
+      return 4;
+    } else if (deviceType == VelbusDeviceType.VMBGP1 ||
+        deviceType == VelbusDeviceType.VMBGP2 ||
+        deviceType == VelbusDeviceType.VMBGP4) {
+      return 1;
+    }
+
+    return 0;
+  }
+
   private int getChannelCount(VelbusDevice device) {
     if (device.getDeviceType() == VelbusDeviceType.VMBGPO || device.getDeviceType() == VelbusDeviceType.VMBGPOD) {
       
@@ -1083,12 +1096,15 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
   public boolean isInitialised(VelbusDevice device) {
     int channelCount = getChannelCount(device);
 
-    // Check first channel from each packet exists in cache
-    for (int i=1; i<=channelCount; i+=8) {
-      if (!device.propertyExists("CHANNELSTATUS" + i)) {
+    // Check all sub addresses have been received
+    int subAddressCount = getMaxSubAddresses(device);
+    int[] addresses = device.getAddresses();
+
+    for (int i=1; i<1+subAddressCount; i++) {
+      if (addresses[i] == 0) {
         return false;
       }
-   }
+    }
 
     // Check temperatures exist
     if (deviceSupportsTemperature(device) &&
@@ -1157,7 +1173,7 @@ public class InputDeviceProcessor extends VelbusDeviceProcessorImpl {
     
     if ((deviceType == VelbusDeviceType.VMBGP1 ||
         deviceType == VelbusDeviceType.VMBGP2 ||
-        deviceType == VelbusDeviceType.VMBGP4) && device.getAddresses().length == 2) {
+        deviceType == VelbusDeviceType.VMBGP4)) {
       return device.getAddresses()[1] != 255;
     }
     

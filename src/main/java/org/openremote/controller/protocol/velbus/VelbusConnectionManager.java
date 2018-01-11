@@ -145,8 +145,6 @@ public class VelbusConnectionManager implements VelbusConnectionStatusCallback {
   /**
    * Get the device associated with this command; if it doesn't exist
    * in the device cache then create it 
-   * @param address
-   * @return
    */
   private synchronized VelbusDevice getDevice(VelbusCommand command) {
     int addr = command.getAddress();
